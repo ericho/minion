@@ -1,0 +1,10 @@
+[package]
+name = "minion"
+version = "0.1.0"
+authors = ["Erich Cordoba <erich.cm@yandex.com>"]
+
+[dependencies]
+tokio-core = "*"
+tokio-timer = "*"
+futures = "*"
+lazy_static = "0.2"
