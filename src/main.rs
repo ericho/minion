@@ -18,7 +18,7 @@ fn main() {
 
     let temp = sensor::TempSensor::new("MySensor");
 
-    let temp_stream = temp.for_each(|_| { 
+    let temp_stream = temp.stream.for_each(|_| {
         println!("Temp!");
         Ok(())
     });

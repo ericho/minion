@@ -13,37 +13,49 @@ trait Sensor {
     fn sample(&self) -> String;
 }
 
-pub struct TempSensor {
-    name: String,
-    sample_rate: Duration,
+pub struct SensorStream {
     timer: Timer,
     sleep: Sleep,
+    sample_rate: Duration,
+}
+
+impl SensorStream {
+    pub fn new(sample_rate: Duration) -> SensorStream {
+        let timer = Timer::default();
+        let sleep = timer.sleep(sample_rate);
+        SensorStream{
+            timer: timer,
+            sleep: sleep,
+            sample_rate: sample_rate,
+        }
+    }
+}
+
+impl Stream for SensorStream {
+    type Item = ();
+    type Error = io::Error;
+
+    fn poll(&mut self) -> Poll<Option<()>, io::Error> {
+        let _ = try_ready!(self.sleep.poll());
+        //println!("{}", self.sample());
+        self.sleep = self.sleep.timer().sleep(self.sample_rate);
+        Ok(Async::Ready(Some(())))
+    }
+}
+
+pub struct TempSensor {
+    name: String,
+    pub stream: SensorStream,
 }
 
 impl TempSensor {
+
     pub fn new(name: &str) -> TempSensor {
-        let sample_rate = Duration::from_millis(5000);
-        let timer = Timer::default();
-        let sleep = timer.sleep(sample_rate);
+        let sample_rate = Duration::from_millis(1000);
         TempSensor{
             name: name.to_string(),
-            sample_rate: sample_rate,
-            timer: timer,
-            sleep: sleep,
+            stream: SensorStream::new(sample_rate),
         }
-    }
-
-    pub fn new_with_sample_rate(name: &str, sample_rate: Duration) -> TempSensor {
-        TempSensor {
-            name: name.to_string(),
-            sample_rate: sample_rate,
-            timer: timer,
-            sleep: sleep,
-        }
-    }
-
-    fn update_sample_rate(&mut self, new_rate: Duration) {
-        self.sample_rate = new_rate;
     }
 }
 
@@ -53,22 +65,15 @@ impl Sensor for TempSensor {
     }
 }
 
-impl Stream for TempSensor {
-    type Item = ();
-    type Error = io::Error;
-
-    fn poll(&mut self) -> Poll<Option<()>, io::Error> {
-        let _ = try_ready!(self.sleep.poll());
-        println!("{}", self.sample());
-        self.sleep = self.sleep.timer().sleep(self.sample_rate);
-        Ok(Async::Ready(Some(())))
-    }
-}
-
 #[test]
 fn smoke() {
     // Basically if this tests compiles and run we are good.
     let mut t = TempSensor::new("TestSensor");
     let new_rate = Duration::from_millis(1000);
-    t.update_sample_rate(new_rate);
+}
+
+#[test]
+fn smoke_stream() {
+    let dur = Duration::from_secs(1);
+    let s = SensorStream::new(dur);
 }
