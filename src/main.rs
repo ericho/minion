@@ -11,12 +11,13 @@ use futures::Future;
 use futures::stream::Stream;
 
 mod sensor;
+mod temp_sensor;
 
 fn main() {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
 
-    let temp = sensor::TempSensor::new("MySensor");
+    let temp = temp_sensor::TempSensor::new("MySensor");
 
     let temp_stream = temp.stream.for_each(|_| {
         println!("Temp!");
