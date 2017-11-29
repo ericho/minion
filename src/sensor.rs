@@ -29,6 +29,7 @@ impl SensorStream {
             sample_rate: sample_rate,
         }
     }
+
 }
 
 impl Stream for SensorStream {

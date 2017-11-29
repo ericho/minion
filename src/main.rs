@@ -13,16 +13,19 @@ use futures::stream::Stream;
 mod sensor;
 mod temp_sensor;
 
+use sensor::Sensor;
+
 fn main() {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
 
     let temp = temp_sensor::TempSensor::new("MySensor");
 
-    let temp_stream = temp.stream.for_each(|_| {
+    let temp_stream = temp.for_each(|_| {
         println!("Temp!");
         Ok(())
     });
+
     handle.spawn(temp_stream.map_err(|_| ()));
     core.run(futures::future::empty::<(), ()>()).unwrap();
 }
