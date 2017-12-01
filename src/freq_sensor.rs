@@ -10,7 +10,7 @@ use tokio_core::reactor::{Handle, Interval};
 use std::io;
 
 
-pub struct TempSensor {
+pub struct FreqSensor {
     name: String,
 }
 
@@ -18,23 +18,23 @@ pub fn sample_interval(dur: Duration, handle: &Handle) -> Box<Future<Item=(), Er
     let interval = Interval::new(dur, handle)
         .unwrap();
     let int_stream = interval.for_each(|_| {
-        let temp = TempSensor::new("Temperature");
-        println!("{}", temp.sample());
+        let freq = FreqSensor::new("Frequency");
+        println!("{}", freq.sample());
         Ok(())
     });
 
     Box::new(int_stream)
 }
 
-impl TempSensor {
-    pub fn new(name: &str) -> TempSensor {
-        TempSensor{
+impl FreqSensor {
+    pub fn new(name: &str) -> FreqSensor {
+        FreqSensor{
             name: name.to_string(),
         }
     }
 }
 
-impl Sensor for TempSensor {
+impl Sensor for FreqSensor {
     fn sample(&self) -> String {
         format!("Sampling {} sensor", self.name)
     }
