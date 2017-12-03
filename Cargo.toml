@@ -7,4 +7,4 @@ authors = ["Erich Cordoba <erich.cm@yandex.com>"]
 tokio-core = "*"
 tokio-timer = "*"
 futures = "*"
-lazy_static = "0.2"
+walkdir = "*"
