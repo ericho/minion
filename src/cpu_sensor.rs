@@ -9,9 +9,10 @@ use futures::Future;
 use futures::stream::Stream;
 use tokio_core::reactor::{Handle, Interval};
 use std::io;
+use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
-
+use regex::Regex;
 
 pub struct CpuSensor {
     name: String,
@@ -35,14 +36,34 @@ impl CpuSensor {
             name: name.to_string(),
         }
     }
+
+    fn get_metrics(&self, entry: &walkdir::DirEntry) {
+        let p = entry.path().to_path_buf();
+        println!("The path : {:?}", p)
+    }
+
+    fn is_cpu_entry(&self, entry: &walkdir::DirEntry) -> bool {
+        let re = Regex::new("cpu[0-9]+").unwrap();
+        let name = entry.file_name().to_str().unwrap();
+        if re.is_match(name) {
+            true
+        } else {
+            false
+        }
+    }
+
 }
 
 impl Sensor for CpuSensor {
     fn sample(&self) -> String {
         for entry in WalkDir::new("/sys/bus/cpu/devices")
             .follow_links(true)
-            .max_depth(1) {
-                println!("Got {:?}", entry);
+            .max_depth(1)
+            .into_iter()
+            .filter_map(|e| e.ok()) {
+                if self.is_cpu_entry(&entry) {
+                    self.get_metrics(&entry);
+                }
             }
         format!("Sampling {} sensor", self.name)
     }
