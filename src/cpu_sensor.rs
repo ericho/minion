@@ -9,7 +9,6 @@ use futures::Future;
 use futures::stream::Stream;
 use tokio_core::reactor::{Handle, Interval};
 use std::io;
-use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 use regex::Regex;
@@ -76,7 +75,6 @@ mod tests {
     #[test]
     fn get_cpu_metrics() {
         let cpu = CpuSensor::new("TestSensor");
-        let metrics = cpu.sample();
-        assert_eq!("Sampling {} sensor", metrics);
+        let _metrics = cpu.sample();
     }
 }
