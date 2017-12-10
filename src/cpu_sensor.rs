@@ -17,9 +17,10 @@ pub struct CpuSensor {
     name: String,
 }
 
-pub fn sample_interval(dur: Duration, handle: &Handle) -> Box<Future<Item=(), Error=io::Error>>{
-    let interval = Interval::new(dur, handle)
-        .unwrap();
+pub fn sample_interval(dur: Duration,
+                       handle: &Handle)
+                       -> Box<Future<Item = (), Error = io::Error>> {
+    let interval = Interval::new(dur, handle).unwrap();
     let int_stream = interval.for_each(|_| {
         let cpu = CpuSensor::new("Frequency");
         println!("{}", cpu.sample());
@@ -31,9 +32,7 @@ pub fn sample_interval(dur: Duration, handle: &Handle) -> Box<Future<Item=(), Er
 
 impl CpuSensor {
     pub fn new(name: &str) -> CpuSensor {
-        CpuSensor{
-            name: name.to_string(),
-        }
+        CpuSensor { name: name.to_string() }
     }
 
     fn get_metrics(&self, entry: &walkdir::DirEntry) {
@@ -44,13 +43,8 @@ impl CpuSensor {
     fn is_cpu_entry(&self, entry: &walkdir::DirEntry) -> bool {
         let re = Regex::new("cpu[0-9]+").unwrap();
         let name = entry.file_name().to_str().unwrap();
-        if re.is_match(name) {
-            true
-        } else {
-            false
-        }
+        if re.is_match(name) { true } else { false }
     }
-
 }
 
 impl Sensor for CpuSensor {
@@ -60,10 +54,10 @@ impl Sensor for CpuSensor {
             .max_depth(1)
             .into_iter()
             .filter_map(|e| e.ok()) {
-                if self.is_cpu_entry(&entry) {
-                    self.get_metrics(&entry);
-                }
+            if self.is_cpu_entry(&entry) {
+                self.get_metrics(&entry);
             }
+        }
         format!("Sampling {} sensor", self.name)
     }
 }
