@@ -2,6 +2,7 @@ extern crate futures;
 extern crate tokio_core;
 extern crate tokio_timer;
 extern crate walkdir;
+extern crate zmq;
 
 use std::time::Duration;
 use sensor::Sensor;
@@ -28,8 +29,17 @@ pub fn sample_interval(dur: Duration,
                        -> Box<Future<Item = (), Error = io::Error>> {
     let interval = Interval::new(dur, handle).unwrap();
     let temp = TempSensor::new();
+    let ctx = zmq::Context::new();
+    let req = ctx.socket(zmq::REQ).unwrap();
+    assert!(req.connect("tcp://localhost:5555").is_ok());
+
+    let mut msg = zmq::Message::new().unwrap();
+
     let int_stream = interval.for_each(move |_| {
-        println!("{}", temp.sample());
+        let sample = temp.sample();
+        println!("Sending data...");
+        req.send(sample.as_bytes(), 0).unwrap();
+        req.recv(&mut msg, 0).unwrap();
         Ok(())
     });
 
@@ -137,16 +147,18 @@ impl TempSensor {
 
 impl Sensor for TempSensor {
     fn sample(&self) -> String {
+        let mut samples = String::new();
         for (name, metric_path) in &self.metrics_path {
             for metric in metric_path {
                 for (label, path) in metric {
                     let content = self.read_file_content(path.clone()).unwrap();
-                    println!("{} {} {}", name, label, content);
+                    let s = format!("{} {} {}\n", name, label, content);
+                    samples.push_str(&s);
                 }
             }
 
         }
-        format!("Sampling temp sensor")
+        samples
     }
 }
 

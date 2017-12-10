@@ -3,6 +3,7 @@ extern crate futures;
 extern crate tokio_timer;
 extern crate walkdir;
 extern crate regex;
+extern crate zmq;
 
 mod sensor;
 mod cpu_sensor;
