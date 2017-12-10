@@ -12,8 +12,19 @@ use std::io;
 use std::io::{Read, Error, ErrorKind};
 use std::fs::File;
 use walkdir::WalkDir;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use regex::Regex;
+use std::collections::HashMap;
+
+// Get the list of metrics available:
+//   - name of the sensor : coretemp, acpitz, fan, etc.
+//   - name of the metric: core0, core1, etc.
+//     - if it's not available, create metric from <sensor>_<id>
+//   - The path of the metric: /sys/class/hwmon/hwmon1/temp1_input
+// On every sample:
+//   - For each sensor:
+//     - Get value from defined path. (need to open files on every read?)
+
 
 
 #[derive(Debug, PartialEq)]
@@ -27,14 +38,15 @@ pub struct TempSensor {
     match_temp_file: Regex,
     match_hwmon_entry: Regex,
     metric_name_expander: Regex,
+    metrics_path: HashMap<String, Vec<HashMap<String, PathBuf>>>,
 }
 
 pub fn sample_interval(dur: Duration,
                        handle: &Handle)
                        -> Box<Future<Item = (), Error = io::Error>> {
     let interval = Interval::new(dur, handle).unwrap();
-    let int_stream = interval.for_each(|_| {
-        let temp = TempSensor::new();
+    let temp = TempSensor::new();
+    let int_stream = interval.for_each(move |_| {
         println!("{}", temp.sample());
         Ok(())
     });
@@ -44,11 +56,47 @@ pub fn sample_interval(dur: Duration,
 
 impl TempSensor {
     pub fn new() -> TempSensor {
-        TempSensor {
-            match_temp_file: Regex::new("temp[0-9]+_(input|label)").unwrap(),
+        let mut sensor = TempSensor {
+            match_temp_file: Regex::new("temp[0-9]+_input").unwrap(),
             match_hwmon_entry: Regex::new("hwmon[0-9]+").unwrap(),
             metric_name_expander: Regex::new("[a-z]+([0-9]+)_(input|label)").unwrap(),
-        }
+            metrics_path: HashMap::new(),
+        };
+        sensor.init_sensor();
+        sensor
+    }
+
+    fn init_sensor(&mut self) {
+        let mut metrics_path = HashMap::new();
+        for entry in WalkDir::new("/sys/class/hwmon")
+            .follow_links(true)
+            .max_depth(2)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| self.is_hwmon_entry(e.path())) {
+                let name = self.get_metrics_group_name(entry.path())
+                    .unwrap_or(String::from("noname"));
+                let mut v = Vec::new();
+                for f in WalkDir::new(entry.path())
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                    .filter(|e| self.is_temp_file(e.path())) {
+                        if let Ok((id, kind)) = self.expand_metric_filename(f.file_name().to_str().unwrap()) {
+                            let label = self.get_metric_label(f.path()).unwrap_or(format!("{}_{}", name, id));
+                            let mut m = HashMap::new();
+                            m.insert(label, f.path().to_path_buf());
+                            v.push(m);
+                        }
+                    }
+                metrics_path.insert(name, v);
+            }
+        self.metrics_path = metrics_path;
+    }
+
+    fn get_metric_label(&self, p: &Path) -> Result<String, io::Error> {
+        let path_str = p.to_str().unwrap().replace("_input", "_label");
+        let label = self.read_file_content(PathBuf::from(path_str))?;
+        Ok(label)
     }
 
     fn is_hwmon_entry(&self, p: &Path) -> bool {
@@ -62,18 +110,22 @@ impl TempSensor {
         self.match_temp_file.is_match(s)
     }
 
-    fn get_metrics_group_name(&self, p: &Path) -> Result<String, io::Error> {
-        let name_path = p.join("name");
-        let mut file = File::open(name_path)?;
+    fn read_file_content(&self, p: PathBuf) -> Result<String, io::Error> {
+        let mut file = File::open(p)?;
         let mut content = String::new();
         file.read_to_string(&mut content)?;
         Ok(content.trim().to_owned())
     }
 
+    fn get_metrics_group_name(&self, p: &Path) -> Result<String, io::Error> {
+        let name_path = p.join("name");
+        let name = self.read_file_content(name_path)?;
+        Ok(name)
+    }
+
     fn expand_metric_filename(&self, name: &str) -> Result<(u32, MetricKind), io::Error> {
         let id: u32;
         let m: MetricKind;
-
         if let Some(res) = self.metric_name_expander.captures(name) {
             if res.len() == 3 {
                 // Getting cpu number and convert it to u32
@@ -100,23 +152,24 @@ impl TempSensor {
             .filter_map(|e| e.ok())
             .filter(|e| self.is_temp_file(e.path())) {
                 if let Ok((id, kind)) = self.expand_metric_filename(f.file_name().to_str().unwrap()) {
-                    println!("id {}", id);
+                    let content = self.read_file_content(f.path().to_path_buf()).unwrap();
+                    println!("Sensor {} with id {} has {}", name, id, content);
                 }
-                println!("File {:?} in {}", f, name);
             }
     }
 }
 
 impl Sensor for TempSensor {
     fn sample(&self) -> String {
-        for entry in WalkDir::new("/sys/class/hwmon")
-            .follow_links(true)
-            .max_depth(2)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| self.is_hwmon_entry(e.path())) {
-                self.get_metrics_from_sysfs(entry.path());
+        for (name, metric_path) in &self.metrics_path {
+            for metric in metric_path {
+                for (label, path) in metric {
+                    let content = self.read_file_content(path.clone()).unwrap();
+                    println!("{} {:?} {}", name, label, content);
+                }
             }
+
+        }
         format!("Sampling temp sensor")
     }
 }

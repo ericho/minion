@@ -18,12 +18,12 @@ fn main() {
     let handle = core.handle();
 
 
-    let temp_stream = temp_sensor::sample_interval(Duration::from_millis(500), &handle);
-    let freq_stream = freq_sensor::sample_interval(Duration::from_millis(1000), &handle);
-    let cpu_stream = cpu_sensor::sample_interval(Duration::from_millis(1000), &handle);
+    let temp_stream = temp_sensor::sample_interval(Duration::from_millis(1000), &handle);
+    // let freq_stream = freq_sensor::sample_interval(Duration::from_millis(1000), &handle);
+    // let cpu_stream = cpu_sensor::sample_interval(Duration::from_millis(1000), &handle);
     handle.spawn(temp_stream.map_err(|_| ()));
-    handle.spawn(freq_stream.map_err(|_| ()));
-    handle.spawn(cpu_stream.map_err(|_| ()));
+    // handle.spawn(freq_stream.map_err(|_| ()));
+    // handle.spawn(cpu_stream.map_err(|_| ()));
 
     core.run(futures::future::empty::<(), ()>()).unwrap();
 }
