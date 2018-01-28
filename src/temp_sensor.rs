@@ -2,7 +2,7 @@ extern crate futures;
 extern crate tokio_core;
 extern crate tokio_timer;
 extern crate walkdir;
-//extern crate zmq;
+extern crate zmq;
 
 use std::time::Duration;
 use sensor::Sensor;
@@ -25,30 +25,29 @@ pub struct TempSensor {
     metrics_path: HashMap<String, Vec<HashMap<String, PathBuf>>>,
 }
 
-pub fn sample_interval<'a>(dur: Duration,
+pub fn sample_interval(dur: Duration,
                        handle: &Handle,
-                       pool: &'a CpuPool)
-                       -> Box<Future<Item = (), Error = io::Error> + 'a> {
+                       pool: &CpuPool)
+                       -> Box<Future<Item = (), Error = io::Error>> {
     let interval = Interval::new(dur, handle).unwrap();
     let temp = TempSensor::new();
-//    let ctx = zmq::Context::new();
-//    let req = ctx.socket(zmq::PUSH).unwrap();
-//    assert!(req.connect("tcp://localhost:5555").is_ok());
-
-//    let mut msg = zmq::Message::new().unwrap();
-
+    let pool = pool.clone();
     let int_stream = interval.for_each(move |_| {
-        handle.spawn(pool.spawn(myfut()).then(move |_| {
-            println!("The other future");
-            Ok(())
-        }));
-        Ok(())
+        let sample = temp.sample();
+        Box::new(pool.spawn(myfut(sample)))
     });
-
     Box::new(int_stream)
 }
 
-fn myfut() -> Box<Future<Item = (), Error = io::Error> + Send + 'static> {
+fn myfut(sample: String) -> Box<Future<Item = (), Error = io::Error> + Send + 'static> {
+    let ctx = zmq::Context::new();
+    let req = ctx.socket(zmq::REQ).unwrap();
+    assert!(req.connect("tcp://localhost:5555").is_ok());
+
+    let mut msg = zmq::Message::new().unwrap();
+    println!("Sending data...");
+    req.send(sample.as_bytes(), 0).unwrap();
+    req.recv(&mut msg, 0).unwrap();
     Box::new(futures::future::ok(()))
 }
 
