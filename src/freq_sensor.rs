@@ -16,7 +16,7 @@ pub struct FreqSensor {
 
 pub fn sample_interval(dur: Duration,
                        handle: &Handle)
-                       -> Box<Future<Item = (), Error = io::Error>> {
+                       -> Box<Future<Item = (), Error = ()>> {
     let interval = Interval::new(dur, handle).unwrap();
     let int_stream = interval.for_each(|_| {
         let freq = FreqSensor::new("Frequency");
@@ -24,7 +24,7 @@ pub fn sample_interval(dur: Duration,
         Ok(())
     });
 
-    Box::new(int_stream)
+    Box::new(int_stream.map_err(|_| ()))
 }
 
 impl FreqSensor {
