@@ -31,7 +31,7 @@ pub struct TempSensor {
 pub fn sample_interval(dur: Duration,
                        handle: &Handle,
                        pool: &CpuPool,
-                       sender: mpsc::Sender<String>)
+                       sender: mpsc::Sender<Vec<Metric>>)
                        -> Box<Future<Item = (), Error = ()>> {
     let interval = Interval::new(dur, handle).unwrap();
     let temp = TempSensor::new();
@@ -49,7 +49,7 @@ pub fn sample_interval(dur: Duration,
     Box::new(int_stream)
 }
 
-fn myfut(sample: &String) -> Box<Future<Item = (), Error = io::Error> + Send> {
+fn myfut(sample: &Vec<Metric>) -> Box<Future<Item = (), Error = io::Error> + Send> {
     // let ctx = zmq::Context::new();
     // let req = ctx.socket(zmq::REQ).unwrap();
     // assert!(req.connect("tcp://localhost:5555").is_ok());
@@ -161,20 +161,30 @@ impl TempSensor {
 }
 
 impl Sensor for TempSensor {
-    fn sample(&self) -> String {
-        let mut samples = String::new();
+    fn sample(&self) -> Vec<Metric> {
+        let mut samples = Vec::new();
         for (name, metric_path) in &self.metrics_path {
             for metric in metric_path {
                 for (label, path) in metric {
                     let content = self.read_file_content(path.clone()).unwrap();
                     let s = format!("{} {} {}\n", name, label, content);
-                    samples.push_str(&s);
+                    let m = Metric{
+                        name: format!("{}_{}", name, label),
+                        value: content.to_string(),
+                    };
+                    samples.push(m);
                 }
             }
 
         }
         samples
     }
+}
+
+pub struct Metric {
+    pub name: String,
+    // TODO: Make the value a generic type.
+    pub value: String,
 }
 
 #[cfg(test)]

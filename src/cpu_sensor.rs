@@ -9,6 +9,7 @@ use futures::Future;
 use futures::stream::Stream;
 use tokio_core::reactor::{Handle, Interval};
 use std::io;
+use temp_sensor::Metric;
 
 use walkdir::WalkDir;
 use regex::Regex;
@@ -23,7 +24,6 @@ pub fn sample_interval(dur: Duration,
     let interval = Interval::new(dur, handle).unwrap();
     let int_stream = interval.for_each(|_| {
         let cpu = CpuSensor::new("Frequency");
-        println!("{}", cpu.sample());
         Ok(())
     });
 
@@ -48,7 +48,7 @@ impl CpuSensor {
 }
 
 impl Sensor for CpuSensor {
-    fn sample(&self) -> String {
+    fn sample(&self) -> Vec<Metric> {
         for entry in WalkDir::new("/sys/bus/cpu/devices")
             .follow_links(true)
             .max_depth(1)
@@ -58,7 +58,13 @@ impl Sensor for CpuSensor {
                 self.get_metrics(&entry);
             }
         }
-        format!("Sampling {} sensor", self.name)
+        format!("Sampling {} sensor", self.name);
+        let mut m = Vec::new();
+        m.push(Metric{ 
+            name: "dummy".to_string(), 
+            value : "fake".to_string()
+        });
+        m
     }
 }
 

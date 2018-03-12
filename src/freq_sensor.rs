@@ -8,7 +8,7 @@ use futures::Future;
 use futures::stream::Stream;
 use tokio_core::reactor::{Handle, Interval};
 use std::io;
-
+use temp_sensor::Metric;
 
 pub struct FreqSensor {
     name: String,
@@ -20,7 +20,7 @@ pub fn sample_interval(dur: Duration,
     let interval = Interval::new(dur, handle).unwrap();
     let int_stream = interval.for_each(|_| {
         let freq = FreqSensor::new("Frequency");
-        println!("{}", freq.sample());
+        println!("Sampling freq ");
         Ok(())
     });
 
@@ -34,7 +34,7 @@ impl FreqSensor {
 }
 
 impl Sensor for FreqSensor {
-    fn sample(&self) -> String {
-        format!("Sampling {} sensor", self.name)
+    fn sample(&self) -> Vec<Metric> {
+        Vec::new()
     }
 }
