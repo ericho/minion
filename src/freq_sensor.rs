@@ -1,13 +1,11 @@
 extern crate futures;
 extern crate tokio_core;
-extern crate tokio_timer;
 
 use std::time::Duration;
 use sensor::Sensor;
 use futures::Future;
 use futures::stream::Stream;
 use tokio_core::reactor::{Handle, Interval};
-use std::io;
 use temp_sensor::Metric;
 
 pub struct FreqSensor {

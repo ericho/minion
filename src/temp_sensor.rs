@@ -1,25 +1,25 @@
 extern crate futures;
+extern crate tokio;
 extern crate tokio_core;
-extern crate tokio_timer;
 extern crate walkdir;
-extern crate zmq;
+extern crate serde_json;
 
-use std::time::Duration;
-use sensor::Sensor;
-use futures::{Future, Sink};
-use futures::IntoFuture;
-use futures::stream::Stream;
-use futures::IntoStream;
-use futures::sync::mpsc;
-use futures_cpupool::CpuPool;
-use tokio_core::reactor::{Handle, Interval};
 use std::io;
 use std::io::{Read, Error, ErrorKind};
-use std::fs::File;
-use walkdir::WalkDir;
-use std::path::{Path, PathBuf};
-use regex::Regex;
 use std::collections::HashMap;
+use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+use std::net::SocketAddr;
+
+use sensor::Sensor;
+use futures::Future;
+use futures::stream::Stream;
+use regex::Regex;
+use tokio::net::TcpStream;
+use tokio::prelude::*;
+use tokio_core::reactor::{Handle, Interval};
+use walkdir::WalkDir;
 
 pub struct TempSensor {
     match_temp_file: Regex,
@@ -30,34 +30,33 @@ pub struct TempSensor {
 
 pub fn sample_interval(dur: Duration,
                        handle: &Handle,
-                       pool: &CpuPool,
-                       sender: mpsc::Sender<Vec<Metric>>)
-                       -> Box<Future<Item = (), Error = ()>> {
+                       addr: &SocketAddr)
+                       -> Box<Future<Item = (), Error = ()> + Send> {
     let interval = Interval::new(dur, handle).unwrap();
     let temp = TempSensor::new();
-    let pool = pool.clone();
+    let addr = addr.clone();
 
     let int_stream = interval.for_each(move |_| {
-        let tx = sender.clone();
         let sample = temp.sample();
-        pool.spawn(myfut(&sample));
-        tx.send(sample).then(|_| {
-            Ok(())
-        })
+        println!("Creating");
+        let json = serde_json::to_string(&sample).unwrap();
+
+        let tcp = TcpStream::connect(&addr);
+
+        tokio::spawn(
+            tcp
+                .map(move |mut s| {
+                    s.write(json.as_bytes());
+                    ()})
+                .map_err(|_| ())
+        );
+        futures::future::ok(())
     }).map_err(|_| ());
 
     Box::new(int_stream)
 }
 
-fn myfut(sample: &Vec<Metric>) -> Box<Future<Item = (), Error = io::Error> + Send> {
-    // let ctx = zmq::Context::new();
-    // let req = ctx.socket(zmq::REQ).unwrap();
-    // assert!(req.connect("tcp://localhost:5555").is_ok());
-
-    // let mut msg = zmq::Message::new().unwrap();
-    println!("Sending data...");
-    // req.send(sample.as_bytes(), 0).unwrap();
-    // req.recv(&mut msg, 0).unwrap();
+fn myfut(_sample: &Vec<Metric>, _addr: &SocketAddr) -> Box<Future<Item = (), Error = ()> + Send> {
     Box::new(futures::future::ok(()))
 }
 
@@ -167,7 +166,6 @@ impl Sensor for TempSensor {
             for metric in metric_path {
                 for (label, path) in metric {
                     let content = self.read_file_content(path.clone()).unwrap();
-                    let s = format!("{} {} {}\n", name, label, content);
                     let m = Metric{
                         name: format!("{}_{}", name, label),
                         value: content.to_string(),
@@ -181,6 +179,7 @@ impl Sensor for TempSensor {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Metric {
     pub name: String,
     // TODO: Make the value a generic type.

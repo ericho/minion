@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: minion-client
+  labels:
+    purpose: Run-minions
+spec:
+  containers:
+  - name: minion
+    image: minion-client:latest
+    args: ["-a", "192.168.1.1:6142"]
+  restartPolicy: OnFailure

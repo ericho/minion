@@ -1,6 +1,5 @@
 extern crate futures;
 extern crate tokio_core;
-extern crate tokio_timer;
 extern crate walkdir;
 
 use std::time::Duration;
@@ -23,7 +22,7 @@ pub fn sample_interval(dur: Duration,
                        -> Box<Future<Item = (), Error = io::Error>> {
     let interval = Interval::new(dur, handle).unwrap();
     let int_stream = interval.for_each(|_| {
-        let cpu = CpuSensor::new("Frequency");
+        let _cpu = CpuSensor::new("Frequency");
         Ok(())
     });
 
