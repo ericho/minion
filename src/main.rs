@@ -17,9 +17,6 @@ extern crate serde_derive;
 #[macro_use]
 extern crate structopt;
 
-// extern crate structopt_derive;
-
-use std::time::Duration;
 use std::net::SocketAddr;
 
 use tokio_core::reactor::Core;
@@ -43,9 +40,7 @@ fn main() {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
 
-    let temp_stream = temp_sensor::sample_interval(
-        Duration::from_millis(500), &handle, &addr);
-    handle.spawn(temp_stream);
+    sensor::init_sensors(&handle, &addr);
 
     // Wait forever
     core.run(futures::future::empty::<(), ()>()).unwrap();

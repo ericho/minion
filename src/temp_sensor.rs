@@ -9,16 +9,10 @@ use std::io::{Read, Error, ErrorKind};
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
-use std::net::SocketAddr;
 
 use sensor::Sensor;
-use futures::Future;
-use futures::stream::Stream;
 use regex::Regex;
-use tokio::net::TcpStream;
-use tokio::prelude::*;
-use tokio_core::reactor::{Handle, Interval};
+
 use walkdir::WalkDir;
 
 pub struct TempSensor {
@@ -26,38 +20,6 @@ pub struct TempSensor {
     match_hwmon_entry: Regex,
     metric_name_expander: Regex,
     metrics_path: HashMap<String, Vec<HashMap<String, PathBuf>>>,
-}
-
-pub fn sample_interval(dur: Duration,
-                       handle: &Handle,
-                       addr: &SocketAddr)
-                       -> Box<Future<Item = (), Error = ()> + Send> {
-    let interval = Interval::new(dur, handle).unwrap();
-    let temp = TempSensor::new();
-    let addr = addr.clone();
-
-    let int_stream = interval.for_each(move |_| {
-        let sample = temp.sample();
-        println!("Creating");
-        let json = serde_json::to_string(&sample).unwrap();
-
-        let tcp = TcpStream::connect(&addr);
-
-        tokio::spawn(
-            tcp
-                .map(move |mut s| {
-                    s.write(json.as_bytes());
-                    ()})
-                .map_err(|_| ())
-        );
-        futures::future::ok(())
-    }).map_err(|_| ());
-
-    Box::new(int_stream)
-}
-
-fn myfut(_sample: &Vec<Metric>, _addr: &SocketAddr) -> Box<Future<Item = (), Error = ()> + Send> {
-    Box::new(futures::future::ok(()))
 }
 
 impl TempSensor {

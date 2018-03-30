@@ -2,12 +2,8 @@ extern crate futures;
 extern crate tokio_core;
 extern crate walkdir;
 
-use std::time::Duration;
 use sensor::Sensor;
-use futures::Future;
-use futures::stream::Stream;
-use tokio_core::reactor::{Handle, Interval};
-use std::io;
+
 use temp_sensor::Metric;
 
 use walkdir::WalkDir;
@@ -17,21 +13,9 @@ pub struct CpuSensor {
     name: String,
 }
 
-pub fn sample_interval(dur: Duration,
-                       handle: &Handle)
-                       -> Box<Future<Item = (), Error = io::Error>> {
-    let interval = Interval::new(dur, handle).unwrap();
-    let int_stream = interval.for_each(|_| {
-        let _cpu = CpuSensor::new("Frequency");
-        Ok(())
-    });
-
-    Box::new(int_stream)
-}
-
 impl CpuSensor {
-    pub fn new(name: &str) -> CpuSensor {
-        CpuSensor { name: name.to_string() }
+    pub fn new() -> CpuSensor {
+        CpuSensor { name: "FreqSensor".to_string() }
     }
 
     fn get_metrics(&self, entry: &walkdir::DirEntry) {
