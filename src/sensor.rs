@@ -1,79 +1,73 @@
 extern crate futures;
 extern crate tokio_core;
-extern crate tokio_timer;
+extern crate tokio;
+extern crate serde_json;
 
-use futures::{Poll, Async, Future};
+use tokio_core::reactor::{Handle, Interval};
+use futures::Future;
 use futures::stream::Stream;
-use tokio_core::reactor::{Remote};
-use tokio_timer::{Sleep, Timer};
-use std::io;
-use std::time::{Duration, Instant};
+use tokio::net::TcpStream;
+use tokio::prelude::*;
+use temp_sensor::*;
+use freq_sensor::FreqSensor;
+use cpu_sensor::CpuSensor;
 
-trait Sensor {
-    fn sample(&self) -> String;
+use std::time::Duration;
+use std::net::SocketAddr;
+
+pub trait Sensor {
+    fn sample(&self) -> Vec<Metric>;
 }
 
-pub struct SensorStream {
-    timer: Timer,
-    sleep: Sleep,
-    sample_rate: Duration,
+fn create_interval<S: Sensor + 'static>(sensor: S,
+                                        dur: Duration,
+                                        handle: &Handle,
+                                        addr: &SocketAddr)
+                   -> Box<Future<Item = (), Error = ()>> {
+    let addr = addr.clone();
+    let interval = Interval::new(dur, handle).unwrap();
+
+    let interval_stream = interval.for_each(move |_| {
+        let sample = sensor.sample();
+        println!("Creating");
+        let json = serde_json::to_string(&sample).unwrap();
+
+        let tcp = TcpStream::connect(&addr);
+
+        tokio::spawn(
+            tcp
+                .map(move |mut s| {
+                    s.write(json.as_bytes());
+                    ()})
+                .map_err(|_| ())
+        );
+
+        futures::future::ok(())
+    }).map_err(|_| ());
+
+    Box::new(interval_stream)
 }
 
-impl SensorStream {
-    pub fn new(sample_rate: Duration) -> SensorStream {
-        let timer = Timer::default();
-        let sleep = timer.sleep(sample_rate);
-        SensorStream{
-            timer: timer,
-            sleep: sleep,
-            sample_rate: sample_rate,
-        }
-    }
-}
+// This method will register all the sensors into the tokio executor.
+pub fn init_sensors(handle: &Handle, addr: &SocketAddr) {
+    let temp = TempSensor::new();
+    let temp_interval = create_interval(temp,
+                                        Duration::from_millis(500),
+                                        handle,
+                                        &addr);
+    handle.spawn(temp_interval);
 
-impl Stream for SensorStream {
-    type Item = ();
-    type Error = io::Error;
+    let freq = FreqSensor::new();
+    let freq_interval = create_interval(freq,
+                                        Duration::from_millis(500),
+                                        handle,
+                                        &addr);
+    handle.spawn(freq_interval);
 
-    fn poll(&mut self) -> Poll<Option<()>, io::Error> {
-        let _ = try_ready!(self.sleep.poll());
-        //println!("{}", self.sample());
-        self.sleep = self.sleep.timer().sleep(self.sample_rate);
-        Ok(Async::Ready(Some(())))
-    }
-}
-
-pub struct TempSensor {
-    name: String,
-    pub stream: SensorStream,
-}
-
-impl TempSensor {
-
-    pub fn new(name: &str) -> TempSensor {
-        let sample_rate = Duration::from_millis(1000);
-        TempSensor{
-            name: name.to_string(),
-            stream: SensorStream::new(sample_rate),
-        }
-    }
-}
-
-impl Sensor for TempSensor {
-    fn sample(&self) -> String {
-        "Just a string".to_string()
-    }
-}
-
-#[test]
-fn smoke() {
-    // Basically if this tests compiles and run we are good.
-    let mut t = TempSensor::new("TestSensor");
-    let new_rate = Duration::from_millis(1000);
-}
-
-#[test]
-fn smoke_stream() {
-    let dur = Duration::from_secs(1);
-    let s = SensorStream::new(dur);
+    let cpu = CpuSensor::new();
+    let cpu_interval = create_interval(cpu,
+                                       Duration::from_millis(500),
+                                       handle,
+                                       &addr);
+    handle.spawn(cpu_interval);
 }
