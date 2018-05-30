@@ -1,9 +1,9 @@
-#![feature(global_allocator)]
-#![feature(allocator_api)]
+// #![feature(global_allocator)]
+// #![feature(allocator_api)]
 
-use std::heap::System;
-#[global_allocator]
-static ALLOCATOR: System = System;
+// use std::heap::System;
+// #[global_allocator]
+// static ALLOCATOR: System = System;
 
 extern crate tokio;
 extern crate tokio_core;
@@ -19,8 +19,9 @@ extern crate structopt;
 
 use std::net::SocketAddr;
 
-use tokio_core::reactor::Core;
 use structopt::StructOpt;
+use futures::future;
+
 
 mod sensor;
 mod cpu_sensor;
@@ -37,11 +38,11 @@ struct Opt {
 fn main() {
     let opt = Opt::from_args();
     let addr = opt.aggr.parse::<SocketAddr>().unwrap();
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
 
-    sensor::init_sensors(&handle, &addr);
+    let f = future::lazy(move || {
+        sensor::init_sensors(&addr);
+        futures::future::empty::<(), ()>()
+    });
 
-    // Wait forever
-    core.run(futures::future::empty::<(), ()>()).unwrap();
+    tokio::run(f);
 }
