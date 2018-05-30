@@ -29,16 +29,17 @@ fn create_interval<S: Sensor + 'static>(sensor: S,
 
     let interval_stream = interval.for_each(move |_| {
         let sample = sensor.sample();
-        println!("Creating");
         let json = serde_json::to_string(&sample).unwrap();
 
         let tcp = TcpStream::connect(&addr);
-
         tokio::spawn(
+            // TODO: Log errors if cannot send data to the aggregator
             tcp.map(move |mut s| {
-                s.write(json.as_bytes());
+                if let Err(e) = s.write(json.as_bytes()) {
+                    println!("Error writing data: {:?}", e);
+                }
                 ()
-            }).map_err(|_| ())
+            }).map_err(|e| println!("Error sending: {:?}", e))
         );
 
         Ok(())

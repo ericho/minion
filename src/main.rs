@@ -12,6 +12,7 @@ extern crate walkdir;
 extern crate regex;
 extern crate serde;
 extern crate serde_json;
+extern crate sysinfo;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]

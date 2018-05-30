@@ -4,13 +4,11 @@ extern crate tokio_core;
 use sensor::Sensor;
 use temp_sensor::Metric;
 
-pub struct FreqSensor {
-    name: String,
-}
+pub struct FreqSensor {}
 
 impl FreqSensor {
     pub fn new() -> FreqSensor {
-        FreqSensor { name: "FreqSensor".to_string() }
+        FreqSensor {}
     }
 }
 
