@@ -37,7 +37,7 @@ example:
 minion --aggregator 192.168.100.14:1234"
 ```
 
-Currently there's no an aggregator defined, so the 1234 port should be opened by another tool, like `nc`. 
+Currently there's no aggregator defined, so the 1234 port should be opened by another tool, like `nc`.
 
 ## TODO
 
