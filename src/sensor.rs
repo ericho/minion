@@ -20,6 +20,49 @@ pub trait Sensor {
     fn sample(&self) -> Vec<Metric>;
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Metric {
+    Temperature(TempMetric),
+    Processor(ProcessorMetric),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TempMetric {
+    label: String,
+    max: f32,
+    critical: Option<f32>,
+    temperature: f32,
+}
+
+impl TempMetric {
+    pub fn new(label: String,
+               max: f32,
+               critical: Option<f32>,
+               temperature: f32) -> TempMetric {
+        TempMetric {
+            label: label,
+            max: max,
+            critical: critical,
+            temperature: temperature,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProcessorMetric {
+    name: String,
+    usage: f32,
+}
+
+impl ProcessorMetric {
+    pub fn new(name: String, usage: f32) -> ProcessorMetric {
+        ProcessorMetric {
+            name: name,
+            usage: usage,
+        }
+    }
+}
+
 fn create_interval<S: Sensor + 'static>(sensor: S,
                                         dur: Duration,
                                         addr: &SocketAddr)

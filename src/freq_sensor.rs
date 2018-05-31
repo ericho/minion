@@ -1,8 +1,7 @@
 extern crate futures;
 extern crate tokio_core;
 
-use sensor::Sensor;
-use temp_sensor::Metric;
+use sensor::{Metric, Sensor};
 
 pub struct FreqSensor {}
 

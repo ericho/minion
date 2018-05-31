@@ -8,8 +8,6 @@
 extern crate tokio;
 extern crate tokio_core;
 extern crate futures;
-extern crate walkdir;
-extern crate regex;
 extern crate serde;
 extern crate serde_json;
 extern crate sysinfo;

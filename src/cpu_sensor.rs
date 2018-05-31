@@ -1,9 +1,9 @@
 extern crate futures;
 extern crate tokio_core;
+extern crate sysinfo;
 
-use sensor::Sensor;
-
-use temp_sensor::Metric;
+use sensor::{ProcessorMetric, Metric, Sensor};
+use sysinfo::{SystemExt, ProcessorExt};
 
 pub struct CpuSensor {}
 
@@ -15,11 +15,21 @@ impl CpuSensor {
 
 impl Sensor for CpuSensor {
     fn sample(&self) -> Vec<Metric> {
+        // TODO: Try to make sysinfo a global type or something similar
+        // that can be accessed from any place in the program.
+        // The refresh_all() method is too expensive to be called on every
+        // sampling.
+        let mut sys = sysinfo::System::new();
+        sys.refresh_system();
+
         let mut m = Vec::new();
-        m.push(Metric{
-            name: "dummy".to_string(),
-            value : "fake".to_string()
-        });
+        for processor in sys.get_processor_list() {
+            println!("{:?}", processor);
+            m.push(Metric::Processor(ProcessorMetric::new(
+                processor.get_name().to_string(),
+                processor.get_cpu_usage()
+            )));
+        }
         m
     }
 }

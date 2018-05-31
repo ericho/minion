@@ -4,7 +4,7 @@ extern crate tokio_core;
 extern crate sysinfo;
 extern crate serde_json;
 
-use sensor::Sensor;
+use sensor::{Metric, TempMetric, Sensor};
 use sysinfo::{SystemExt, ComponentExt};
 
 pub struct TempSensor {}
@@ -18,7 +18,7 @@ impl TempSensor {
 impl Sensor for TempSensor {
     fn sample(&self) -> Vec<Metric> {
         let mut sys = sysinfo::System::new();
-        sys.refresh_all();
+        sys.refresh_system();
 
         // TODO: Seems possible to get first all the components and then just
         // update each of them on every sample, by this way it shouldn't be
@@ -27,21 +27,15 @@ impl Sensor for TempSensor {
         for i in sys.get_components_list() {
             // TODO: Print data only in debug mode (env_logger?)
             println!("{:?}", i);
-            let m = Metric{
-                name: i.get_label().to_string(),
-                value: i.get_temperature().to_string(),
-            };
+            let m = Metric::Temperature(TempMetric::new(
+                i.get_label().to_string(),
+                i.get_max(),
+                i.get_critical(),
+                i.get_temperature()));
             samples.push(m);
         }
         samples
     }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Metric {
-    pub name: String,
-    // TODO: Make the value a generic type.
-    pub value: String,
 }
 
 #[cfg(test)]
