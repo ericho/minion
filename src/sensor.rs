@@ -104,7 +104,7 @@ pub fn init_sensors(addr: &SocketAddr) {
     let freq_interval = create_interval(freq,
                                         Duration::from_millis(500),
                                         &addr);
-    tokio::spawn(freq_interval);
+    //tokio::spawn(freq_interval);
 
     let cpu = CpuSensor::new();
     let cpu_interval = create_interval(cpu,
