@@ -1,7 +1,7 @@
 extern crate futures;
-extern crate tokio_core;
-extern crate tokio;
 extern crate serde_json;
+extern crate tokio;
+extern crate tokio_core;
 
 use futures::Future;
 use futures::stream::Stream;
@@ -35,10 +35,7 @@ pub struct TempMetric {
 }
 
 impl TempMetric {
-    pub fn new(label: String,
-               max: f32,
-               critical: Option<f32>,
-               temperature: f32) -> TempMetric {
+    pub fn new(label: String, max: f32, critical: Option<f32>, temperature: f32) -> TempMetric {
         TempMetric {
             label: label,
             max: max,
@@ -63,53 +60,48 @@ impl ProcessorMetric {
     }
 }
 
-fn create_interval<S: Sensor + 'static>(sensor: S,
-                                        dur: Duration,
-                                        addr: &SocketAddr)
-                                        -> impl Future<Item = (), Error = ()> {
+fn create_interval<S: Sensor + 'static>(
+    sensor: S,
+    dur: Duration,
+    addr: &SocketAddr,
+) -> impl Future<Item = (), Error = ()> {
     let addr = addr.clone();
     let interval = Interval::new(Instant::now(), dur);
 
-    let interval_stream = interval.for_each(move |_| {
-        let sample = sensor.sample();
-        let json = serde_json::to_string(&sample).unwrap();
+    let interval_stream = interval
+        .for_each(move |_| {
+            let sample = sensor.sample();
+            let json = serde_json::to_string(&sample).unwrap();
 
-        let tcp = TcpStream::connect(&addr);
-        tokio::spawn(
-            // TODO: Log errors if cannot send data to the aggregator
-            tcp.map(move |mut s| {
-                if let Err(e) = s.write(json.as_bytes()) {
-                    println!("Error writing data: {:?}", e);
-                }
-                ()
-            }).map_err(|e| println!("Error sending: {:?}", e))
-        );
+            let tcp = TcpStream::connect(&addr);
+            tokio::spawn(
+                // TODO: Log errors if cannot send data to the aggregator
+                tcp.map(move |mut s| {
+                    if let Err(e) = s.write(json.as_bytes()) {
+                        println!("Error writing data: {:?}", e);
+                    }
+                    ()
+                }).map_err(|e| println!("Error sending: {:?}", e)),
+            );
 
-        Ok(())
-    }).map_err(|_| ());
+            Ok(())
+        })
+        .map_err(|_| ());
 
     interval_stream
 }
 
 // This method will register all the sensors into the tokio executor.
 pub fn init_sensors(addr: &SocketAddr) {
-
     let temp = TempSensor::new();
-    let temp_interval = create_interval(temp,
-                                        Duration::from_millis(500),
-                                        &addr);
+    let temp_interval = create_interval(temp, Duration::from_millis(500), &addr);
     tokio::spawn(temp_interval);
 
     let freq = FreqSensor::new();
-    let freq_interval = create_interval(freq,
-                                        Duration::from_millis(500),
-                                        &addr);
+    let freq_interval = create_interval(freq, Duration::from_millis(500), &addr);
     //tokio::spawn(freq_interval);
 
     let cpu = CpuSensor::new();
-    let cpu_interval = create_interval(cpu,
-                                       Duration::from_millis(500),
-                                       &addr);
+    let cpu_interval = create_interval(cpu, Duration::from_millis(500), &addr);
     tokio::spawn(cpu_interval);
-
 }

@@ -1,17 +1,17 @@
 extern crate futures;
+extern crate serde_json;
+extern crate sysinfo;
 extern crate tokio;
 extern crate tokio_core;
-extern crate sysinfo;
-extern crate serde_json;
 
-use sensor::{Metric, TempMetric, Sensor};
-use sysinfo::{SystemExt, ComponentExt};
+use sensor::{Metric, Sensor, TempMetric};
+use sysinfo::{ComponentExt, SystemExt};
 
 pub struct TempSensor {}
 
 impl TempSensor {
     pub fn new() -> TempSensor {
-        TempSensor{}
+        TempSensor {}
     }
 }
 
@@ -31,7 +31,8 @@ impl Sensor for TempSensor {
                 i.get_label().to_string(),
                 i.get_max(),
                 i.get_critical(),
-                i.get_temperature()));
+                i.get_temperature(),
+            ));
             samples.push(m);
         }
         samples

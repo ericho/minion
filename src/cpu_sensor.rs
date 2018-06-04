@@ -1,9 +1,9 @@
 extern crate futures;
-extern crate tokio_core;
 extern crate sysinfo;
+extern crate tokio_core;
 
-use sensor::{ProcessorMetric, Metric, Sensor};
-use sysinfo::{SystemExt, ProcessorExt};
+use sensor::{Metric, ProcessorMetric, Sensor};
+use sysinfo::{ProcessorExt, SystemExt};
 
 pub struct CpuSensor {}
 
@@ -27,7 +27,7 @@ impl Sensor for CpuSensor {
             println!("{:?}", processor);
             m.push(Metric::Processor(ProcessorMetric::new(
                 processor.get_name().to_string(),
-                processor.get_cpu_usage()
+                processor.get_cpu_usage(),
             )));
         }
         m
